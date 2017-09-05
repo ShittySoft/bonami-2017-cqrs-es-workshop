@@ -12,6 +12,7 @@ use Bernard\QueueFactory\PersistentFactory;
 use Building\Domain\Aggregate\Building;
 use Building\Domain\Command;
 use Building\Domain\DomainEvent\CheckInAnomalyDetected;
+use Building\Domain\DomainEvent\UserCheckedIn;
 use Building\Domain\Repository\BuildingRepositoryInterface;
 use Building\Infrastructure\Repository\BuildingRepository;
 use Doctrine\DBAL\Connection;
@@ -236,6 +237,15 @@ return new ServiceManager([
                         $event->buildingId(),
                         $event->username()
                     ));
+                }
+            ];
+        },
+        UserCheckedIn::class . '-projectors' => function (ContainerInterface $container) : array {
+            $eventStore = $container->get(EventStore::class);
+
+            return [
+                function (UserCheckedIn $event) : void {
+                    // logic done with the event store?
                 }
             ];
         },
