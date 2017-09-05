@@ -13,6 +13,7 @@ use Building\Domain\Aggregate\Building;
 use Building\Domain\Command;
 use Building\Domain\DomainEvent\CheckInAnomalyDetected;
 use Building\Domain\DomainEvent\UserCheckedIn;
+use Building\Domain\DomainEvent\UserCheckedOut;
 use Building\Domain\Repository\BuildingRepositoryInterface;
 use Building\Infrastructure\Repository\BuildingRepository;
 use Doctrine\DBAL\Connection;
@@ -33,6 +34,7 @@ use Prooph\EventStore\Adapter\PayloadSerializer\JsonPayloadSerializer;
 use Prooph\EventStore\Aggregate\AggregateRepository;
 use Prooph\EventStore\Aggregate\AggregateType;
 use Prooph\EventStore\EventStore;
+use Prooph\EventStore\Stream\StreamName;
 use Prooph\EventStoreBusBridge\EventPublisher;
 use Prooph\EventStoreBusBridge\TransactionManager;
 use Prooph\ServiceBus\Async\MessageProducer;
@@ -244,8 +246,29 @@ return new ServiceManager([
             $eventStore = $container->get(EventStore::class);
 
             return [
-                function (UserCheckedIn $event) : void {
-                    // logic done with the event store?
+                function (UserCheckedIn $event) use ($eventStore) : void {
+                    $history = $eventStore
+                        ->loadEventsByMetadataFrom(
+                            new StreamName('event_stream'),
+                            ['aggregate_id' => $event->aggregateId()]
+                        );
+
+                    $users = [];
+
+                    foreach ($history as $pastEvent) {
+                        if ($pastEvent instanceof UserCheckedIn) {
+                            $users[$pastEvent->username()] = null;
+                        }
+
+                        if ($pastEvent instanceof UserCheckedOut) {
+                            unset($users[$pastEvent->username()]);
+                        }
+                    }
+
+                    file_put_contents(
+                        __DIR__ . '/public/building-' . $event->aggregateId() . '.json',
+                        json_encode(array_keys($users))
+                    );
                 }
             ];
         },
