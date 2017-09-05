@@ -11,6 +11,7 @@ use Bernard\QueueFactory;
 use Bernard\QueueFactory\PersistentFactory;
 use Building\Domain\Aggregate\Building;
 use Building\Domain\Command;
+use Building\Domain\DomainEvent\CheckInAnomalyDetected;
 use Building\Domain\Repository\BuildingRepositoryInterface;
 use Building\Infrastructure\Repository\BuildingRepository;
 use Doctrine\DBAL\Connection;
@@ -216,6 +217,13 @@ return new ServiceManager([
                     ->get($command->buildingId())
                     ->checkOutUser($command->username());
             };
+        },
+        CheckInAnomalyDetected::class . '-listeners' => function (ContainerInterface $container) : array {
+            return [
+                function (CheckInAnomalyDetected $event) : void {
+                    // .. stuff ..
+                }
+            ];
         },
         BuildingRepositoryInterface::class => function (ContainerInterface $container) : BuildingRepositoryInterface {
             return new BuildingRepository(
