@@ -218,10 +218,24 @@ return new ServiceManager([
                     ->checkOutUser($command->username());
             };
         },
+        Command\NotifySecurityOfAnomaly::class => function (ContainerInterface $container) : callable {
+            return function (Command\NotifySecurityOfAnomaly $command) {
+                \error_log(sprintf(
+                    'Security breach in building "%s" by "%s"',
+                    $command->buildingId()->toString(),
+                    $command->username()
+                ));
+            };
+        },
         CheckInAnomalyDetected::class . '-listeners' => function (ContainerInterface $container) : array {
+            $commandBus = $container->get(CommandBus::class);
+
             return [
-                function (CheckInAnomalyDetected $event) : void {
-                    // .. stuff ..
+                function (CheckInAnomalyDetected $event) use ($commandBus) : void {
+                    $commandBus->dispatch(Command\NotifySecurityOfAnomaly::fromBuildingIdAndUsername(
+                        $event->buildingId(),
+                        $event->username()
+                    ));
                 }
             ];
         },
