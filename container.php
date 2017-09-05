@@ -27,6 +27,7 @@ use Prooph\Common\Event\ActionEventListenerAggregate;
 use Prooph\Common\Event\ProophActionEventEmitter;
 use Prooph\Common\Messaging\FQCNMessageFactory;
 use Prooph\Common\Messaging\NoOpMessageConverter;
+use Prooph\EventSourcing\AggregateChanged;
 use Prooph\EventSourcing\EventStoreIntegration\AggregateTranslator;
 use Prooph\EventStore\Adapter\Doctrine\DoctrineEventStoreAdapter;
 use Prooph\EventStore\Adapter\Doctrine\Schema\EventStoreSchema;
@@ -247,15 +248,22 @@ return new ServiceManager([
 
             return [
                 function (UserCheckedIn $event) use ($eventStore) : void {
+                    $filePath             = __DIR__ . '/public/building-versioned-' . $event->aggregateId() . '.json';
+                    $parsed               = file_exists($filePath) ? json_decode(file_get_contents($filePath), true) : null;
+                    $lastProjectedVersion = $parsed['version'] ?? 0;
+                    $users                = array_flip($parsed['users'] ?? []);
+
                     $history = $eventStore
                         ->loadEventsByMetadataFrom(
                             new StreamName('event_stream'),
-                            ['aggregate_id' => $event->aggregateId()]
+                            ['aggregate_id' => $event->aggregateId()],
+                            $lastProjectedVersion
                         );
 
-                    $users = [];
-
+                    /* @var $history AggregateChanged[] */
                     foreach ($history as $pastEvent) {
+                        $lastProjectedVersion = $pastEvent->version();
+
                         if ($pastEvent instanceof UserCheckedIn) {
                             $users[$pastEvent->username()] = null;
                         }
@@ -266,8 +274,11 @@ return new ServiceManager([
                     }
 
                     file_put_contents(
-                        __DIR__ . '/public/building-' . $event->aggregateId() . '.json',
-                        json_encode(array_keys($users))
+                        $filePath,
+                        json_encode([
+                            'version' => $lastProjectedVersion,
+                            'users' => array_keys($users)
+                        ])
                     );
                 }
             ];
