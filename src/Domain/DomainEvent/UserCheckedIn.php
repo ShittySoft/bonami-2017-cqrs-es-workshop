@@ -13,4 +13,9 @@ final class UserCheckedIn extends AggregateChanged
     {
         return self::occur($buildingId->toString(), ['username' => $username]);
     }
+
+    public function username() : string
+    {
+        return $this->payload['username'];
+    }
 }
